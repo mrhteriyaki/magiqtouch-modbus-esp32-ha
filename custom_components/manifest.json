@@ -1,0 +1,9 @@
+{
+  "domain": "magiqtouch_modbus",
+  "name": "Magiqtouch Modbus",
+  "version": "1.0.0",
+  "iot_class": "local_polling",
+  "config_flow": true,
+  "documentation": "https://github.com/mrhteriyaki/magiqtouch-modbus-esp32"
+}
+
