@@ -1,7 +1,11 @@
 # Home Assistant Integration for the MagiqTouch Modbus ESP32 Interface
 
-ESP Project: https://github.com/mrhteriyaki/magiqtouch-modbus-esp32
+Note this has not been heavily tested.
 
+## Hardware Requirements
+ESP Modbus Interface: https://github.com/mrhteriyaki/magiqtouch-modbus-esp32
+
+## Installation
 Add this repo to HACS: https://github.com/mrhteriyaki/magiqtouch-modbus-esp32-ha
 Or manual install by copying custom_components folder.
 
