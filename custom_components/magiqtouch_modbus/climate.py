@@ -22,6 +22,8 @@ from homeassistant.components.climate.const import (
 
 _LOGGER = logging.getLogger(__name__)
 SCAN_INTERVAL = timedelta(seconds=15)
+MagiqtouchZones = []
+
 
 async def async_setup_entry(hass, config_entry, async_add_entities):
 
@@ -41,7 +43,7 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
     
     #Determine modes per zone.
     #[HVACMode.OFF, HVACMode.COOL, HVACMode.HEAT, HVACMode.FAN_ONLY]
-    mtzent = []
+    
     for ZoneIndex in range(zone_count):
         supportedmodes = [HVACMode.OFF]
         if ZoneIndex == 0: #Evap cooler and fan only controlled by zone 1.
@@ -50,8 +52,8 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
                 supportedmodes.append(HVACMode.COOL) 
         if heater_enabled == True:
                 supportedmodes.append(HVACMode.HEAT)      
-        mtzent.append(MagiqtouchZone(config_entry,ZoneIndex + 1,supportedmodes))
-    async_add_entities(mtzent)
+        MagiqtouchZones.append(MagiqtouchZone(config_entry,ZoneIndex + 1,supportedmodes))
+    async_add_entities(MagiqtouchZones)
 
 
 async def fetch_hvac_status(api_url: str) -> dict:
@@ -71,16 +73,22 @@ class MagiqtouchZone(ClimateEntity):
         self._config_entry = config_entry
         self.api_url = self._config_entry.data["HVAC URL"]
         
+        self.systemmode = None
         self.zone = zone
+        self.heatzonepower = None
+        
         self._attr_name = "MagiqTouch Zone " + str(zone)
         self._attr_temperature_unit = UnitOfTemperature.CELSIUS
         self._attr_hvac_mode = None
-        self._attr_hvac_modes = supportedmodes
         self._attr_fan_mode = None
         self._attr_fan_modes = []
         self._attr_current_temperature = None
         self._attr_target_temperature = None
-        self.systemmode = None
+        self._attr_swing_mode = None
+        self._attr_swing_modes = None       
+        self._attr_hvac_modes = supportedmodes
+        
+        
 
     #Status update.
     async def async_update(self):
@@ -97,6 +105,17 @@ class MagiqtouchZone(ClimateEntity):
             self._attr_hvac_mode = HVACMode.OFF #Set mode to Off if primary has control.
         else:
             self._attr_hvac_mode = current_status_systemmode
+        
+        if self._attr_hvac_mode == HVACMode.HEAT:
+            self._attr_swing_modes = ["Zone Closed","Zone Open"]
+            self.heatzonepower = data.get(f"heater_zone{self.zone}_enabled")
+            if self.heatzonepower == 0:
+                self._attr_swing_mode = "Zone Closed"
+            elif self.heatzonepower == 1:
+                self._attr_swing_mode = "Zone Open"
+        else:
+             self._attr_swing_mode = None
+             self._attr_swing_modes = None
         
         #Temperature Target and Sensor.
         tempzonekey = "zone" + str(self.zone) + "_temp_sensor"
@@ -132,11 +151,13 @@ class MagiqtouchZone(ClimateEntity):
             await self.send_hvac_command("mode=2")
         elif new_hvac_mode == HVACMode.HEAT:
             await self.send_hvac_command("mode=4")
+            await self.send_hvac_command(f"zone{self.zone}=on")
 
         if new_hvac_mode == HVACMode.OFF:
             await self.send_hvac_command("power=off")
         else:
             await self.send_hvac_command("power=on")
+        
          
 
     async def async_set_fan_mode(self, new_fan_mode: str):  
@@ -157,7 +178,7 @@ class MagiqtouchZone(ClimateEntity):
                 await self.send_hvac_command(command)
         command = f"fanspeed={new_fan_mode}"         
         await self.send_hvac_command(command)
-        self.async_write_ha_state()
+        
     
         
     async def async_turn_on(self):
@@ -173,8 +194,14 @@ class MagiqtouchZone(ClimateEntity):
             zoneprefix = ""
         bodytext = "temp" + zoneprefix + "=" + str(int(kwargs.get("temperature")))
         await self.send_hvac_command(bodytext)
-        self.async_write_ha_state()
+        
 
+    async def async_set_swing_mode(self, swing_mode: str):
+        if swing_mode == "Zone Open":
+            await self.send_hvac_command(f"zone{self.zone}=on")        
+        elif swing_mode == "Zone Closed":
+            await self.send_hvac_command(f"zone{self.zone}=off")        
+        
 
     def _map_mode(self, mode, system_power):
         # Mapping system mode to Home Assistant modes
@@ -207,12 +234,23 @@ class MagiqtouchZone(ClimateEntity):
         
     @property
     def supported_features(self) -> int:
-        return ClimateEntityFeature.FAN_MODE | ClimateEntityFeature.TARGET_TEMPERATURE | ClimateEntityFeature.TURN_ON | ClimateEntityFeature.TURN_OFF
+        return ClimateEntityFeature.FAN_MODE | ClimateEntityFeature.TARGET_TEMPERATURE | ClimateEntityFeature.TURN_ON | ClimateEntityFeature.TURN_OFF | ClimateEntityFeature.SWING_MODE
 
     @property
     def hvac_mode(self):
         return self._attr_hvac_mode
 
+
+    #Swing mode used for heater zone enable/disable
+    @property
+    def swing_mode(self):
+        return self._attr_swing_mode
+
+    @property
+    def swing_modes(self):
+        return self._attr_swing_modes
+        
+    
 
     #Fan Settings.
 
@@ -230,7 +268,7 @@ class MagiqtouchZone(ClimateEntity):
     @property
     def fan_mode(self):
         return str(self._attr_fan_mode)
-
+        
     #Temperature.
 
     @property
@@ -274,3 +312,5 @@ class MagiqtouchZone(ClimateEntity):
     @property
     def min_temp(self):
         return 0
+    
+    
