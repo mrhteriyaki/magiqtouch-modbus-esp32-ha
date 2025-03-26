@@ -43,10 +43,11 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
     #[HVACMode.OFF, HVACMode.COOL, HVACMode.HEAT, HVACMode.FAN_ONLY]
     mtzent = []
     for ZoneIndex in range(zone_count):
-        supportedmodes = [HVACMode.OFF, HVACMode.FAN_ONLY]
-        if ZoneIndex == 0:
+        supportedmodes = [HVACMode.OFF]
+        if ZoneIndex == 0: #Evap cooler and fan only controlled by zone 1.
+            supportedmodes.append(HVACMode.FAN_ONLY)
             if evap_enabled == True:
-                supportedmodes.append(HVACMode.COOL) #Evap cooler only on zone 1.
+                supportedmodes.append(HVACMode.COOL) 
         if heater_enabled == True:
                 supportedmodes.append(HVACMode.HEAT)      
         mtzent.append(MagiqtouchZone(config_entry,ZoneIndex + 1,supportedmodes))
