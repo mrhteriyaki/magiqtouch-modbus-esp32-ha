@@ -234,7 +234,9 @@ class MagiqtouchZone(ClimateEntity):
         return None
 
     def _map_fanspeed(self, coolerfanspeed,heaterfanspeed):
-        if self.systemmode == 0 and coolerfanspeed > 0:
+        if coolerfanspeed == 0 and heaterfanspeed == 0: #System is Off.
+            return None 
+        elif self.systemmode == 0 and coolerfanspeed > 0:
             return coolerfanspeed
         elif self.systemmode == 1 and heaterfanspeed > 0: #Recycle Fan, use heater fanspeed.
             return heaterfanspeed
@@ -244,6 +246,7 @@ class MagiqtouchZone(ClimateEntity):
             return "Temperature"
         elif self.systemmode == 4 and heaterfanspeed > 0:
             return heaterfanspeed
+        
         _LOGGER.error(f"Could not map fan speed. SystemMode is {str(self.systemmode)} coolerfanspeed: {str(coolerfanspeed)} heaterfanspeed: {str(heaterfanspeed)}")
         return None
         
