@@ -251,9 +251,9 @@ class MagiqtouchZone(ClimateEntity):
         return None
         
         
-    #@property
-    #def unique_id(self) -> str:
-        #return uid
+    @property
+    def unique_id(self):
+        return f"magiqtouch_zone_{str(self.zone)}"
         
     @property
     def supported_features(self) -> int:
