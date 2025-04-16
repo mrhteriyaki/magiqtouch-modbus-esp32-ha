@@ -1,7 +1,5 @@
 # Home Assistant Integration for the MagiqTouch Modbus ESP32 Interface
 
-Note this has not been heavily tested.
-
 ## Hardware Requirements
 ESP Modbus Interface: https://github.com/mrhteriyaki/magiqtouch-modbus-esp32
 
@@ -12,18 +10,16 @@ Or manual install by copying custom_components folder.
 
 ## Configuration:
 
-![config](Images/config.PNG)
+![config](Images/config.PNG)  
 
-1. Set the URL of the HVAC ESP32 Module eg: http://192.168.20.112
-2. Set your zone count.
-3. Tick Evap / Heater modules for your supported setup.
+1. Set the URL of the HVAC ESP32 Module eg: http://192.168.20.112  
+2. Set your zone count.  
+3. Tick Evap / Heater modules for your supported setup.  
 
-Dashboard display:
+Dashboard display:  
 ![dash](Images/dash.PNG)
 
-Details showing fan speed selection and option to use temperature mode:
+Details showing fan speed selection and option to use temperature mode:  
 ![z1detail](Images/z1detail.PNG)
 
-
-
-
+![z1detailfan](Images/fan.PNG)
