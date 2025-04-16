@@ -20,6 +20,6 @@ Dashboard display:
 ![dash](Images/dash.PNG)
 
 Details showing fan speed selection and option to use temperature mode:  
-![z1detail](Images/z1detail.PNG)
+![z1detail](Images/z1detail.PNG)  
 
-![z1detailfan](Images/fan.PNG)
+![z1detailfan](Images/fan.png)
