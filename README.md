@@ -23,3 +23,6 @@ Details showing fan speed selection and option to use temperature mode:
 ![z1detail](Images/z1detail.PNG)  
 
 ![z1detailfan](Images/fan.png)
+
+Dashboard with Logbook:
+![dashboardwithlog](Images/Dashboard_Log.PNG)

@@ -13,24 +13,21 @@ from homeassistant.components.climate.const import (
     ClimateEntityFeature
 )
 
-#Device Modes
+#System Modes
 #0 = External Fan
 #1 = Recycle Fan
 #2 = Cooler Manual
 #3 = Cooler Auto
 #4 = Heater
 
+DOMAIN = "magiqtouch_modbus"
 _LOGGER = logging.getLogger(__name__)
 SCAN_INTERVAL = timedelta(seconds=15)
 MagiqtouchZones = []
 
 
 async def async_setup_entry(hass, config_entry, async_add_entities):
-
-    #mtmodbussystem: MagiqtouchModbus = MagiqtouchModbus()
-    #set zone list.
-    zone_count = config_entry.data["Zones"]
-    
+    zone_count = config_entry.data["Zones"]  
     evap_enabled = config_entry.data["Evaporative Unit"]
     heater_enabled = config_entry.data["Heater Unit"]
     
@@ -43,7 +40,6 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
     
     #Determine modes per zone.
     #[HVACMode.OFF, HVACMode.COOL, HVACMode.HEAT, HVACMode.FAN_ONLY]
-    
     for ZoneIndex in range(zone_count):
         supportedmodes = [HVACMode.OFF]
         if ZoneIndex == 0: #Evap cooler and fan only controlled by zone 1.
@@ -51,8 +47,13 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
             if evap_enabled == True:
                 supportedmodes.append(HVACMode.COOL) 
         if heater_enabled == True:
-                supportedmodes.append(HVACMode.HEAT)      
-        MagiqtouchZones.append(MagiqtouchZone(config_entry,ZoneIndex + 1,supportedmodes))
+                supportedmodes.append(HVACMode.HEAT)   
+        zone_entity = MagiqtouchZone(
+            config_entry = config_entry,
+            zone = ZoneIndex + 1,
+            supportedmodes = supportedmodes,
+        )
+        MagiqtouchZones.append(zone_entity)
     async_add_entities(MagiqtouchZones)
 
 
@@ -71,17 +72,18 @@ async def fetch_hvac_status(api_url: str) -> dict:
 class MagiqtouchZone(ClimateEntity):
     def __init__(self, config_entry,zone,supportedmodes):
         self._config_entry = config_entry
+        self._attr_unique_id = f"magiqtouch_zone_{str(zone)}"
         self.api_url = self._config_entry.data["HVAC URL"]
         
         self.systemmode = None
         self.zone = zone
         self.heatzonepower = None
         
-        self._attr_name = "MagiqTouch Zone " + str(zone)
+        self._attr_name = "Zone " + str(zone)
         self._attr_temperature_unit = UnitOfTemperature.CELSIUS
-        self._attr_hvac_mode = None
+        self._attr_hvac_mode = HVACMode.OFF
         self._attr_fan_mode = None
-        self._attr_fan_modes = []
+        self._attr_fan_modes = [HVACMode.OFF]
         self._attr_current_temperature = None
         self._attr_target_temperature = None
         self._attr_swing_mode = None
@@ -96,11 +98,30 @@ class MagiqtouchZone(ClimateEntity):
         #Occasional error invalid fanspeed mode occuring when switching external/interanl modes.
         evap_fanspeed = data.get('evap_fanspeed')
         heat_fanspeed = data.get('heater_fanspeed')
-        currentfanmode = self._map_fanspeed(evap_fanspeed,heat_fanspeed)
-        self._attr_fan_mode = currentfanmode
+        currentfanspeed = self._map_fanspeed(evap_fanspeed,heat_fanspeed)
+        
+        #Log Fan Speed change for primary zone, only on Fan or Manual Cooler modes.
+        if self.zone == 1 and self.systemmode != None and self.systemmode <= 2:
+            if currentfanspeed != None and currentfanspeed != self._attr_fan_mode:
+                self.hass.bus.async_fire("magiqtouch_fan_speed_changed", {
+                "name": self._attr_name,
+                "entity_id": self.entity_id,
+                "speed": currentfanspeed,
+                })
+
+        self._attr_fan_mode = currentfanspeed
         
         #System Mode.
         current_status_systemmode = self._map_mode(self.systemmode, data.get('system_power')) #System Mode.
+        
+        #Log mode change.
+        if self.zone == 1 and current_status_systemmode != self._attr_hvac_mode:
+            self.hass.bus.async_fire("magiqtouch_mode_changed", {
+                "name": self._attr_name,
+                "entity_id": self.entity_id,
+                "mode": current_status_systemmode,
+                })
+        
         if current_status_systemmode not in self._attr_hvac_modes:
             self._attr_hvac_mode = HVACMode.OFF #Set mode to Off if primary has control.
         else:
@@ -253,8 +274,17 @@ class MagiqtouchZone(ClimateEntity):
         
     @property
     def unique_id(self):
-        return f"magiqtouch_zone_{str(self.zone)}"
-        
+        return self._attr_unique_id
+     
+    @property
+    def device_info(self):
+        return {
+        "identifiers": {(DOMAIN, self.api_url)},
+        "name": "Magiqtouch Modbus Controller",
+        "model": "Modbus ESP32 Interface",
+        }   
+       
+       
     @property
     def supported_features(self) -> int:
         return ClimateEntityFeature.FAN_MODE | ClimateEntityFeature.TARGET_TEMPERATURE | ClimateEntityFeature.TURN_ON | ClimateEntityFeature.TURN_OFF | ClimateEntityFeature.SWING_MODE
