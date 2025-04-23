@@ -191,14 +191,7 @@ class MagiqtouchZone(CoordinatorEntity,ClimateEntity):
         
         if hvacmode not in self._attr_hvac_modes:        
             return HVACMode.OFF #Mode not in the modes list - return OFF.
-            
-        #Log mode changes to primary zone.
-        if self.zone == 1 and hvacmode != self._attr_hvac_mode:
-            self.hass.bus.async_fire("magiqtouch_mode_changed", {
-                "name": self._attr_name,
-                "entity_id": self.entity_id,
-                "mode": hvacmode,
-                })
+
         self._attr_hvac_mode = hvacmode        
         return hvacmode
 
