@@ -5,6 +5,8 @@ import logging
 
 from datetime import timedelta
 
+from aiohttp import ClientError, ClientTimeout
+
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 DOMAIN = "magiqtouch_modbus"
@@ -21,16 +23,22 @@ class MTMODCoordinator(DataUpdateCoordinator):
         )
         self.entry = config_entry
         self.url = config_entry.data["HVAC URL"]
-        
+        self.lastresult = None
+        self.failcount = 0
+
     async def _async_update(self):
-        # Fetch and return data from your API
+        timeout = ClientTimeout(total=4)
         try:
-            async with aiohttp.ClientSession() as session:
+            async with aiohttp.ClientSession(timeout=timeout) as session:
                 async with session.get(self.url) as response:
-                    if response.status == 200:
-                        return await response.json()
-                    else:
-                        _LOGGER.error(f"Error fetching HVAC status response code: {response.status}")
-        except requests.RequestException as ex:
+                    response.raise_for_status()
+                    self.lastresult = await response.json(content_type=None) #(content_type=None) Forces acceptance of the text/html
+                    self.failcount = 0
+                    return self.lastresult
+        except (ClientError, asyncio.TimeoutError) as ex:
             _LOGGER.error("Error getting status from HVAC Magiqtouch Modbus Interface: %s", ex)
+            if self.failcount < 5:
+                self.failcount += 1
+                return self.lastresult
+            return None            
         

@@ -98,8 +98,6 @@ class MagiqtouchZone(CoordinatorEntity,ClimateEntity):
             await self.send_hvac_command("power=off")
         else:
             await self.send_hvac_command("power=on")
-        
-         
 
     async def async_set_fan_mode(self, new_fan_mode: str):  
         if self.coordinator.data == None:
