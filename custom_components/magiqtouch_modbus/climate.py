@@ -13,6 +13,7 @@ from homeassistant.components.climate.const import (
 )
 from .coordinator import MTMODCoordinator
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
+from homeassistant.helpers.device_registry import DeviceInfo
 
 DOMAIN = "magiqtouch_modbus"
 _LOGGER = logging.getLogger(__name__)
@@ -152,12 +153,13 @@ class MagiqtouchZone(CoordinatorEntity,ClimateEntity):
         return self._attr_unique_id
      
     @property
-    def device_info(self):
-        return {
-        "identifiers": {(DOMAIN, self.api_url)},
-        "name": "Magiqtouch Modbus Controller",
-        "model": "Modbus ESP32 Interface",
-        }   
+    def device_info(self) ->DeviceInfo:
+        return DeviceInfo(
+            identifiers={(DOMAIN, self.api_url)},
+            name="Magiqtouch ESP32 Controller",
+            model="Modbus ESP32 Interface",
+            configuration_url=self.api_url
+        )   
        
        
     @property
