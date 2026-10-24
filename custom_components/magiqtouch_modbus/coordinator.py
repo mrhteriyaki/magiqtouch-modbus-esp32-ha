@@ -1,44 +1,58 @@
-import requests
-import aiohttp
-import asyncio 
-import logging  
+import logging
 
 from datetime import timedelta
+from typing import Any
 
 from aiohttp import ClientError, ClientTimeout
 
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-DOMAIN = "magiqtouch_modbus"
+from .const import CONF_URL
+
 _LOGGER = logging.getLogger(__name__)
 
-class MTMODCoordinator(DataUpdateCoordinator):
-    def __init__(self, hass, config_entry):
+REQUEST_TIMEOUT = ClientTimeout(total=4)
+#Consecutive failed polls where the last status is kept before entities go unavailable.
+MAX_FAILURES = 5
+
+type MagiqtouchConfigEntry = ConfigEntry[MTMODCoordinator]
+
+
+class MTMODCoordinator(DataUpdateCoordinator[dict[str, Any]]):
+    def __init__(self, hass: HomeAssistant, config_entry: MagiqtouchConfigEntry):
         super().__init__(
             hass,
-            logger=_LOGGER,  # your logger
+            logger=_LOGGER,
+            config_entry=config_entry,
             name="MTMOD Coordinator",
-            update_method=self._async_update,
             update_interval=timedelta(seconds=1),
         )
-        self.entry = config_entry
-        self.url = config_entry.data["HVAC URL"]
-        self.lastresult = None
+        self.url = config_entry.data[CONF_URL].rstrip("/")
+        self.session = async_get_clientsession(hass)
         self.failcount = 0
 
-    async def _async_update(self):
-        timeout = ClientTimeout(total=4)
+    async def _async_update_data(self) -> dict[str, Any]:
         try:
-            async with aiohttp.ClientSession(timeout=timeout) as session:
-                async with session.get(self.url) as response:
-                    response.raise_for_status()
-                    self.lastresult = await response.json(content_type=None) #(content_type=None) Forces acceptance of the text/html
-                    self.failcount = 0
-                    return self.lastresult
-        except (ClientError, asyncio.TimeoutError) as ex:
-            _LOGGER.error("Error getting status from HVAC Magiqtouch Modbus Interface: %s", ex)
-            if self.failcount < 5:
-                self.failcount += 1
-                return self.lastresult
-            return None            
-        
+            async with self.session.get(self.url, timeout=REQUEST_TIMEOUT) as response:
+                response.raise_for_status()
+                data = await response.json(content_type=None) #(content_type=None) Forces acceptance of the text/html
+        except (ClientError, TimeoutError, ValueError) as ex:
+            self.failcount += 1
+            if self.data is not None and self.failcount <= MAX_FAILURES:
+                _LOGGER.debug("Status poll %s failed, keeping last status: %s", self.failcount, ex)
+                return self.data
+            raise UpdateFailed(f"Error getting status from HVAC Magiqtouch Modbus Interface: {ex}") from ex
+        self.failcount = 0
+        return data
+
+    async def async_send_command(self, payload: str) -> None:
+        commandurl = self.url + "/command"
+        try:
+            async with self.session.post(commandurl, data=payload, timeout=REQUEST_TIMEOUT) as response:
+                response.raise_for_status()
+        except (ClientError, TimeoutError) as ex:
+            raise HomeAssistantError(f"Failed to send command {payload} to {commandurl}: {ex}") from ex

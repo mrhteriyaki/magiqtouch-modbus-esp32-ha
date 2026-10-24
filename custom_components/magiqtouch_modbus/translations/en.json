@@ -1,0 +1,41 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "MagiqTouch Modbus ESP32 Interface",
+        "data": {
+          "HVAC URL": "HVAC URL",
+          "Zones": "Zones",
+          "Evaporative Unit": "Evaporative Unit",
+          "Heater Unit": "Heater Unit"
+        },
+        "data_description": {
+          "HVAC URL": "URL of the ESP32 module, e.g. http://192.168.20.112",
+          "Zones": "Number of heater zones (1 or 2)"
+        }
+      },
+      "reconfigure": {
+        "title": "MagiqTouch Modbus ESP32 Interface",
+        "data": {
+          "HVAC URL": "HVAC URL",
+          "Zones": "Zones",
+          "Evaporative Unit": "Evaporative Unit",
+          "Heater Unit": "Heater Unit"
+        },
+        "data_description": {
+          "HVAC URL": "URL of the ESP32 module, e.g. http://192.168.20.112",
+          "Zones": "Number of heater zones (1 or 2)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to the ESP32 module.",
+      "invalid_url": "The URL must start with http:// or https://",
+      "no_units": "Select at least one of Evaporative Unit or Heater Unit."
+    },
+    "abort": {
+      "already_configured": "This ESP32 module is already configured.",
+      "reconfigure_successful": "Reconfiguration was successful."
+    }
+  }
+}
